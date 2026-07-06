@@ -11,3 +11,7 @@ env/
 Thumbs.db
 .vscode/
 ~$*
+
+# Local-only multi-seed simulation (not published to GitHub)
+Online Tuning/multiseed/
+Online Tuning/charts/multiseed_*.png
