@@ -1,5 +1,12 @@
-torch>=2.0
-numpy>=1.23
-pandas>=1.5
-matplotlib>=3.6
-openpyxl>=3.1
+# ── Core: imported directly by the code (main_script + all packages) ──────────
+torch>=2.0          # networks, agents (DDPG/TD3/CQL), tensors
+numpy>=1.23         # arrays / math everywhere
+pandas>=1.5         # reads the closed-loop .xlsx datasets
+matplotlib>=3.6     # all charts / plots
+
+# ── Runtime-required but not imported directly ───────────────────────────────
+openpyxl>=3.1       # pandas .xlsx engine (needed by pd.read_excel)
+
+# ── To run the evaluation notebooks (.ipynb) ─────────────────────────────────
+jupyter>=1.0
+ipykernel>=6.0
