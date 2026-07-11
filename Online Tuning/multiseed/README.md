@@ -5,7 +5,8 @@ pipelines** of `../BC_vs_CQL_Offline_Policy_Comparison.ipynb` across **4 seeds
 (42, 36, 27, 21)**. Seed 42 replicates the original comparison (Expert 1.224 /
 BC 1.224 / CQL 0.243), so the other seeds are apples-to-apples with it:
 
-- **BC** — BC package trainer at full budget (390 epochs), `[Kp,Ki,Kd]` box,
+- **BC** — BC package trainer at full budget (390 epochs), `[Kp,Ki,Kw]` box
+  (`Kw` pinned to the expert constant `Ki/Kp`),
   4 original sunny days + cloudy day.
 - **CQL** — the `CQL_CIRL.ipynb` offline pipeline in the original `[Kp,Ki,Kw]` box:
   buffer pre-filled from that seed's raw BC actor (noise 0.05) over the 5 original

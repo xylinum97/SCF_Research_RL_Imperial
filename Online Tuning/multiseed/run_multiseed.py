@@ -5,7 +5,8 @@ Seed 42 replicates the original BC-vs-CQL offline comparison
 and every other seed reruns the IDENTICAL pipelines so the comparison is
 apples-to-apples with seed 42:
 
-  * BC  — the BC package trainer at its FULL budget (EPOCHS=390), [Kp,Ki,Kd] box,
+  * BC  — the BC package trainer at its FULL budget (EPOCHS=390), [Kp,Ki,Kw] box
+          (Kw pinned to the expert constant Ki/Kp),
           trained on the 4 original sunny days + the cloudy day.
   * CQL — the CQL_CIRL.ipynb pipeline in the ORIGINAL [Kp,Ki,Kw] box: offline
           buffer pre-filled from that seed's raw BC actor (noise 0.05) over the 5
@@ -14,7 +15,7 @@ apples-to-apples with seed 42:
 
 Each seed's BC and CQL actors are saved under multiseed/policies/. Evaluation is
 zero-shot on Juan's 4 new days with the SAME rollout code as the comparison
-notebook (BC via 'pid_kd' in its box, CQL via 'pid_kw' in its box). Outputs:
+notebook (BC and CQL both via 'pid_kw', each in its own box). Outputs:
 
   * results.json                                  — per-seed per-day MAEs
   * traces.npz                                    — Tout traces for the notebook
@@ -58,8 +59,8 @@ CLOUDY_WEIGHT     = 3.0
 PROXY_WIN         = 2000
 
 # The two gain boxes (identical to BC_vs_CQL_Offline_Policy_Comparison.ipynb)
-BC_LOW  = np.array([-0.625, -0.625 / 300, 0.0], np.float32)   # [Kp,Ki,Kd]
-BC_HIGH = np.array([-0.375, -0.125 / 300, 0.0], np.float32)
+BC_LOW  = np.array([-0.625, -0.625 / 300, 1.0 / 300], np.float32)   # [Kp,Ki,Kw] — Kw pinned to expert Ki/Kp
+BC_HIGH = np.array([-0.375, -0.125 / 300, 1.0 / 300], np.float32)
 
 SMOKE = os.environ.get("MULTISEED_SMOKE") == "1"   # tiny budgets for a pipeline test
 
@@ -227,7 +228,7 @@ def report():
         print(f"[report] seeds missing a BC or CQL policy (skipped): {skipped}", flush=True)
 
     for seed in seeds_done:
-        for method, path, box, mode in [("bc",  bc_path(seed),  (BC_LOW, BC_HIGH), "pid_kd"),
+        for method, path, box, mode in [("bc",  bc_path(seed),  (BC_LOW, BC_HIGH), "pid_kw"),
                                         ("cql", cql_path(seed), (np.asarray(cfg.GAIN_LOW),
                                                                  np.asarray(cfg.GAIN_HIGH)), "pid_kw")]:
             actor = load_actor(path); maes = []
@@ -298,7 +299,7 @@ def report():
                 if r == 0 and j == 0:
                     ax.legend(fontsize=8)
         fig.suptitle(f"Seed {seed} — actions applied at each time step on Juan's 4 new days "
-                     f"(BC [Kp,Ki,Kd->Kw=Ki/Kp] vs CQL [Kp,Ki,Kw]; q = resulting flow)", fontsize=12)
+                     f"(BC [Kp,Ki,Kw pinned to Ki/Kp] vs CQL [Kp,Ki,Kw]; q = resulting flow)", fontsize=12)
         fig.tight_layout()
         out = os.path.join(chart_dir, f"multiseed_seed{seed}_actions_4days.png")
         fig.savefig(out, dpi=150); plt.close(fig)

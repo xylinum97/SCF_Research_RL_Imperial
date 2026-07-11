@@ -30,7 +30,7 @@ def collect_offline_buffer(excel_files, buffer):
     (noised) normalised expert gain vector, giving coverage around the expert
     point for the CQL conservatism to be meaningful."""
     added = 0
-    a_expert = normalize_gains(np.array([KP_EXPERT, KI_EXPERT, KD_EXPERT], dtype=np.float32))
+    a_expert = normalize_gains(np.array([KP_EXPERT, KI_EXPERT, KW], dtype=np.float32))
     for path in excel_files:
         path = Path(path)
         if not path.exists():
@@ -57,10 +57,9 @@ def collect_offline_buffer(excel_files, buffer):
             de = -(tout - tout_prev) / TS
             # noised normalised gains -> physical gains actually applied
             a = np.clip(a_expert + np.random.randn(3).astype(np.float32) * PREFILL_NOISE, 0.0, 1.0)
-            Kp, Ki, Kd = denormalize_gains(a)
-            q_raw = Kp * e + Ki * int_e + Kd * de
+            Kp, Ki, Kw = denormalize_gains(a)      # Kw pinned to the expert constant KW = Ki/Kp
+            q_raw = Kp * e + Ki * int_e
             q     = float(np.clip(q_raw, Q_MIN, Q_MAX))
-            Kw    = Ki / Kp                                    # anti-windup gain from applied gains
             tout_next = solarfield_model_np(q, Tin_arr[i], I_arr[i], Ta_arr[i], th_arr[i], tout)
             err = tout_next - tref
             r   = (-np.log(err ** 2 + EPS_LOG)
@@ -99,10 +98,9 @@ def evaluate_closed_loop(actor, excel_files, verbose=False):
                                   Tin_arr[i], th_arr[i], tref], dtype=np.float32)
                 s_norm = torch.from_numpy(normalize_states(state).reshape(1, -1))
                 g_norm = np.clip(actor(s_norm).numpy()[0], 0.0, 1.0)
-                Kp, Ki, Kd = denormalize_gains(g_norm)
-                q_raw = Kp * e + Ki * int_e + Kd * de
+                Kp, Ki, Kw = denormalize_gains(g_norm)  # Kw pinned to the expert constant KW = Ki/Kp
+                q_raw = Kp * e + Ki * int_e
                 q     = float(np.clip(q_raw, Q_MIN, Q_MAX))
-                Kw    = Ki / Kp
                 tout_next = solarfield_model_np(q, Tin_arr[i], I_arr[i], Ta_arr[i], th_arr[i], tout)
                 Tout_list.append(tout_next)
                 int_e = float(np.clip(int_e + (e + Kw * (q - q_raw)) * TS, -INT_E_CLIP, INT_E_CLIP))

@@ -1,5 +1,6 @@
 """
-BC CIRL Anti-Windup — Behavioral Cloning of the anti-windup expert ([Kp,Ki,Kd] actor).
+BC CIRL Anti-Windup — Behavioral Cloning of the anti-windup expert ([Kp,Ki,Kw] actor;
+Kw is the anti-windup gain, pinned to the expert constant KW = Ki/Kp).
 Refactored to import shared components (physics, networks) from ../../main_script;
 only the reward, supervised data loading, training loop, and evaluation are kept
 here. Constants live in ../config_cirl.py.
@@ -53,8 +54,8 @@ def load_data(excel_files: list) -> tuple:
     states     : (N, 9)  [Tout_m, e, int_e, de, Ig, Ta, Tin, theta, T_ref(Ig)]
     raw_states : (N, 6)  [Tout_m, Tin, Ta, Ig, theta, q_prev]
     pid_states : (N, 3)  [e, int_e, de]
-    gains_norm : (N, 3)  [Kp, Ki, Kd] normalised
-    gains_raw  : (N, 3)  [Kp, Ki, Kd] physical
+    gains_norm : (N, 3)  [Kp, Ki, Kw] normalised
+    gains_raw  : (N, 3)  [Kp, Ki, Kw] physical
     q_expert   : (N, 1)  q[t+1] from expert PI
     t_ref_arr  : (N,)    per-sample T_ref derived from irradiance
     """
@@ -95,7 +96,7 @@ def load_data(excel_files: list) -> tuple:
         de_track   = np.zeros(N)
         Tout_m[0]     = T_sc[0]
         q[0]          = q_meas[0]
-        gains_used[0] = [KP_EXPERT, KI_EXPERT, KD_EXPERT]
+        gains_used[0] = [KP_EXPERT, KI_EXPERT, KW]
         # ── Bumpless start: pre-load the integral so the first control increment is
         #    zero (Kp*e0 + Ki*int_e = 0), removing the start-up flow jump.
         e0    = tref_full[0] - Tout_m[0]
@@ -106,8 +107,8 @@ def load_data(excel_files: list) -> tuple:
             de   = -(Tout_m[i - 1] - Tout_m[max(0, i - 2)]) / TS
             int_track[i - 1] = int_e          # state the controller saw producing q[i]
             de_track[i - 1]  = de
-            gains_used[i] = [KP_EXPERT, KI_EXPERT, KD_EXPERT]
-            u     = KP_EXPERT * e + KI_EXPERT * int_e + KD_EXPERT * de
+            gains_used[i] = [KP_EXPERT, KI_EXPERT, KW]
+            u     = KP_EXPERT * e + KI_EXPERT * int_e
             q_raw = u                                   # positional control output
             q[i]  = np.clip(q_raw, Q_MIN, Q_MAX)
             # ── Back-calculation anti-windup: Kw feeds the saturation error back into
@@ -219,10 +220,10 @@ def train(states, raw_states, pid_states, gains_norm, gains_raw,
         for s_n, s_r, s_p, q_e, t_r in train_loader:
             g_pred     = model(s_n)
             gains_phys = denormalize_gains_torch(g_pred)
-            Kp = gains_phys[:, 0]; Ki = gains_phys[:, 1]; Kd = gains_phys[:, 2]
+            Kp = gains_phys[:, 0]; Ki = gains_phys[:, 1]; Kw = gains_phys[:, 2]
             e     = s_p[:, 0]; int_e = s_p[:, 1]; de = s_p[:, 2]
             q_prev = s_r[:, 5]
-            u      = Kp * e + Ki * int_e + Kd * de
+            u      = Kp * e + Ki * int_e
             q_new  = torch.clamp(u, Q_MIN, Q_MAX)
             Tout   = solarfield_model_torch(
                 q_new, s_r[:, 1], s_r[:, 3], s_r[:, 2], s_r[:, 4], s_r[:, 0]
@@ -240,10 +241,10 @@ def train(states, raw_states, pid_states, gains_norm, gains_raw,
             for s_n, s_r, s_p, q_e, t_r in val_loader:
                 g_pred     = model(s_n)
                 gains_phys = denormalize_gains_torch(g_pred)
-                Kp = gains_phys[:, 0]; Ki = gains_phys[:, 1]; Kd = gains_phys[:, 2]
+                Kp = gains_phys[:, 0]; Ki = gains_phys[:, 1]; Kw = gains_phys[:, 2]
                 e     = s_p[:, 0]; int_e = s_p[:, 1]; de = s_p[:, 2]
                 q_prev = s_r[:, 5]
-                u      = Kp * e + Ki * int_e + Kd * de
+                u      = Kp * e + Ki * int_e
                 q_new  = torch.clamp(u, Q_MIN, Q_MAX)
                 Tout   = solarfield_model_torch(
                     q_new, s_r[:, 1], s_r[:, 3], s_r[:, 2], s_r[:, 4], s_r[:, 0]
@@ -272,26 +273,26 @@ def train(states, raw_states, pid_states, gains_norm, gains_raw,
     model.load_state_dict(best_w)
     model.eval()
 
-    t_Tout, t_q, t_Kp, t_Ki, t_Kd, t_tref = [], [], [], [], [], []
+    t_Tout, t_q, t_Kp, t_Ki, t_Kw, t_tref = [], [], [], [], [], []
     with torch.no_grad():
         for s_n, s_r, s_p, q_e, t_r in test_loader:
             g_pred     = model(s_n)
             gains_phys = denormalize_gains_torch(g_pred)
-            Kp = gains_phys[:, 0]; Ki = gains_phys[:, 1]; Kd = gains_phys[:, 2]
+            Kp = gains_phys[:, 0]; Ki = gains_phys[:, 1]; Kw = gains_phys[:, 2]
             e     = s_p[:, 0]; int_e = s_p[:, 1]; de = s_p[:, 2]
             q_prev = s_r[:, 5]
-            u      = Kp * e + Ki * int_e + Kd * de
+            u      = Kp * e + Ki * int_e
             q_new  = torch.clamp(u, Q_MIN, Q_MAX)
             Tout   = solarfield_model_torch(
                 q_new, s_r[:, 1], s_r[:, 3], s_r[:, 2], s_r[:, 4], s_r[:, 0]
             )
             t_Tout.append(Tout.numpy()); t_q.append(q_new.numpy())
             t_Kp.append(Kp.numpy());    t_Ki.append(Ki.numpy())
-            t_Kd.append(Kd.numpy());    t_tref.append(t_r.numpy())
+            t_Kw.append(Kw.numpy());    t_tref.append(t_r.numpy())
 
     test_Tout = np.concatenate(t_Tout);  test_q    = np.concatenate(t_q)
     test_Kp   = np.concatenate(t_Kp);   test_Ki   = np.concatenate(t_Ki)
-    test_Kd   = np.concatenate(t_Kd);   test_tref = np.concatenate(t_tref)
+    test_Kw   = np.concatenate(t_Kw);   test_tref = np.concatenate(t_tref)
     err       = test_Tout - test_tref
 
     test_metrics = {
@@ -302,7 +303,7 @@ def train(states, raw_states, pid_states, gains_norm, gains_raw,
         'Tout': test_Tout, 'q': test_q, 'error': err,
         'Kp': test_Kp,  'Kp_mean': float(np.mean(test_Kp)),  'Kp_std': float(np.std(test_Kp)),
         'Ki': test_Ki,  'Ki_mean': float(np.mean(test_Ki)),  'Ki_std': float(np.std(test_Ki)),
-        'Kd': test_Kd,  'Kd_mean': float(np.mean(test_Kd)),  'Kd_std': float(np.std(test_Kd)),
+        'Kw': test_Kw,  'Kw_mean': float(np.mean(test_Kw)),  'Kw_std': float(np.std(test_Kw)),
     }
 
     if save_path is not None:
@@ -315,7 +316,7 @@ def train(states, raw_states, pid_states, gains_norm, gains_raw,
     print(f"  Dynamic gains (test mean ± std):")
     print(f"    Kp = {test_metrics['Kp_mean']:.4f} ± {test_metrics['Kp_std']:.4f}")
     print(f"    Ki = {test_metrics['Ki_mean']:.6f} ± {test_metrics['Ki_std']:.6f}")
-    print(f"    Kd = {test_metrics['Kd_mean']:.4f} ± {test_metrics['Kd_std']:.4f}")
+    print(f"    Kw = {test_metrics['Kw_mean']:.4f} ± {test_metrics['Kw_std']:.4f}")
     if save_path is not None:
         print(f"  Weights saved: {save_path}")
 
@@ -331,17 +332,17 @@ def evaluate(model, states, raw_states, pid_states, t_ref_arr):
     with torch.no_grad():
         g_pred     = model(S_norm)
         gains_phys = denormalize_gains_torch(g_pred)
-        Kp = gains_phys[:, 0]; Ki = gains_phys[:, 1]; Kd = gains_phys[:, 2]
+        Kp = gains_phys[:, 0]; Ki = gains_phys[:, 1]; Kw = gains_phys[:, 2]
         e     = S_pid[:, 0]; int_e = S_pid[:, 1]; de = S_pid[:, 2]
         q_prev = S_raw[:, 5]
-        u      = Kp * e + Ki * int_e + Kd * de
+        u      = Kp * e + Ki * int_e
         q_new  = torch.clamp(u, Q_MIN, Q_MAX)
         Tout   = solarfield_model_torch(
             q_new, S_raw[:, 1], S_raw[:, 3], S_raw[:, 2], S_raw[:, 4], S_raw[:, 0]
         )
 
     Tout_np = Tout.numpy(); q_np = q_new.numpy()
-    Kp_np   = Kp.numpy();   Ki_np = Ki.numpy(); Kd_np = Kd.numpy()
+    Kp_np   = Kp.numpy();   Ki_np = Ki.numpy(); Kw_np = Kw.numpy()
     err     = Tout_np - t_ref_arr
     mae     = float(np.mean(np.abs(err)))
     rmse    = float(np.sqrt(np.mean(err ** 2)))
@@ -351,7 +352,7 @@ def evaluate(model, states, raw_states, pid_states, t_ref_arr):
         'mse': float(np.mean(err**2)), 'n': len(err),
         'Kp': Kp_np,  'Kp_mean': float(np.mean(Kp_np)),  'Kp_std': float(np.std(Kp_np)),
         'Ki': Ki_np,  'Ki_mean': float(np.mean(Ki_np)),  'Ki_std': float(np.std(Ki_np)),
-        'Kd': Kd_np,  'Kd_mean': float(np.mean(Kd_np)),  'Kd_std': float(np.std(Kd_np)),
+        'Kw': Kw_np,  'Kw_mean': float(np.mean(Kw_np)),  'Kw_std': float(np.std(Kw_np)),
     }
 
 
@@ -367,7 +368,7 @@ def plot_results(history, test_metrics, save_dir, combo_name=""):
     ax.set_title(f"CIRL BC Setpoint Update — Reward Curves{tag}")
     ax.legend(); ax.grid(True, alpha=0.3)
     fig.tight_layout()
-    fig.savefig(save_dir / "bc_cirl_setpoint_update_without_Kd_loss.png", dpi=150)
+    fig.savefig(save_dir / "bc_cirl_setpoint_update_with_Kw_loss.png", dpi=150)
     plt.close(fig)
 
     err = test_metrics['error']
@@ -380,7 +381,7 @@ def plot_results(history, test_metrics, save_dir, combo_name=""):
                  f"n={test_metrics['n']:,}")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
-    fig.savefig(save_dir / "bc_cirl_setpoint_update_without_Kd_error_hist.png", dpi=150)
+    fig.savefig(save_dir / "bc_cirl_setpoint_update_with_Kw_error_hist.png", dpi=150)
     plt.close(fig)
 
     fig, axes = plt.subplots(1, 4, figsize=(20, 4))
@@ -390,7 +391,7 @@ def plot_results(history, test_metrics, save_dir, combo_name=""):
     axes[0].set_xlabel("q_new  [L/min]"); axes[0].set_ylabel("Count")
     axes[0].set_title(f"Flow Rate Distribution{tag}"); axes[0].legend(fontsize=8)
     axes[0].grid(True, alpha=0.3)
-    for ax, key, color in zip(axes[1:], ['Kp', 'Ki', 'Kd'],
+    for ax, key, color in zip(axes[1:], ['Kp', 'Ki', 'Kw'],
                                ['seagreen', 'darkorange', 'mediumpurple']):
         ax.hist(test_metrics[key], bins=60, color=color, edgecolor="black", alpha=0.7)
         ax.set_xlabel(f"{key}  (gain)"); ax.set_ylabel("Count")
@@ -399,7 +400,7 @@ def plot_results(history, test_metrics, save_dir, combo_name=""):
                      f"std={test_metrics[key+'_std']:.4f}")
         ax.grid(True, alpha=0.3)
     fig.tight_layout()
-    fig.savefig(save_dir / "bc_cirl_setpoint_update_without_Kd_dist.png", dpi=150)
+    fig.savefig(save_dir / "bc_cirl_setpoint_update_with_Kw_dist.png", dpi=150)
     plt.close(fig)
 
     print(f"  Plots saved to: {save_dir}")
@@ -464,7 +465,7 @@ def main():
             "test_mae": full_metrics['mae'], "test_rmse": full_metrics['rmse'],
             "test_mse": full_metrics['mse'],
             "Kp_mean": full_metrics['Kp_mean'], "Ki_mean": full_metrics['Ki_mean'],
-            "Kd_mean": full_metrics['Kd_mean'], "save_path": save_path,
+            "Kw_mean": full_metrics['Kw_mean'], "save_path": save_path,
         })
 
     best      = min(summary, key=lambda x: x["test_mae"])
@@ -476,7 +477,7 @@ def main():
           f"(T_ref: sunny={TREF_SUNNY}°C  cloudy={TREF_CLOUDY}°C | holdout 20%)")
     print(f"{'#':>4}  {'Combo':>20}  {'N':>1}  {'Total':>7}  {'EvalN':>6}  "
           f"{'BestRwd':>10}  {'TestMAE':>8}  {'TestRMSE':>9}  "
-          f"{'Kp':>7}  {'Ki':>9}  {'Kd':>7}")
+          f"{'Kp':>7}  {'Ki':>9}  {'Kw':>7}")
     print("-" * 110)
     for r in summary:
         marker = " <- best" if r is best else ""
@@ -485,7 +486,7 @@ def main():
               f"{r['best_val']:>10.6f}  "
               f"{r['test_mae']:>8.4f}  {r['test_rmse']:>9.4f}  "
               f"{r['Kp_mean']:>7.4f}  {r['Ki_mean']:>9.6f}  "
-              f"{r['Kd_mean']:>7.4f}{marker}")
+              f"{r['Kw_mean']:>7.4f}{marker}")
     print("=" * 110)
     print(f"\nBest policy: {best['combo_name']}  →  {best_dest}")
     print(f"  T_ref: sunny={TREF_SUNNY}°C  cloudy={TREF_CLOUDY}°C  "
@@ -514,9 +515,9 @@ def main():
     axes[2].set_title("Test RMSE\n(held-out 20%)")
     fig.tight_layout()
     plot_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(plot_dir / "bc_cirl_setpoint_update_without_Kd_comparison.png", dpi=150)
+    fig.savefig(plot_dir / "bc_cirl_setpoint_update_with_Kw_comparison.png", dpi=150)
     plt.show()
-    print(f"\nComparison plot saved to: {plot_dir / 'bc_cirl_setpoint_update_without_Kd_comparison.png'}")
+    print(f"\nComparison plot saved to: {plot_dir / 'bc_cirl_setpoint_update_with_Kw_comparison.png'}")
 
 
 if __name__ == "__main__":

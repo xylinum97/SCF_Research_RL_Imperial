@@ -44,13 +44,13 @@ library serves the direct-flow (`ACTOR_KIND='flow'`, 10-D state) and gain
 ## The control problem
 
 Positional PI with back-calculation anti-windup (`Kw = Ki/Kp`), expert gains
-`Kp=-0.5`, `Ti=300 s`, `Kd=0`. Setpoints: **sunny 80 °C**, **cloudy 65 °C**
+`Kp=-0.5`, `Ti=300 s`. Setpoints: **sunny 80 °C**, **cloudy 65 °C**
 (auto-detected from filename). Flow `q ∈ [0, 40] L/min`.
 
 Two actor parameterisations recur throughout:
 - **Regular** — actor outputs the flow `q` directly (10-D state incl. `q_prev`).
-- **CIRL** — actor outputs PI **gains** (9-D state); `[Kp,Ki,Kd]` for the BC/CQL line
-  or `[Kp,Ki,Kw]` for the online line.
+- **CIRL** — actor outputs PI **gains** `[Kp,Ki,Kw]` (9-D state); offline (BC/CQL)
+  `Kw` is pinned to the expert constant `Ki/Kp`, online it is learned.
 
 ## The four experiments
 

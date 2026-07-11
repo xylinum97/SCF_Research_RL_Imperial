@@ -7,7 +7,7 @@ of a solar thermal collector field. Two actor variants, mirroring the
 | Variant     | Actor output                       | Training script                        |
 |-------------|------------------------------------|----------------------------------------|
 | **Regular** | flow `q ∈ [0, 40]` directly        | `train/CQL_Regular_Anti_Windup.py`     |
-| **CIRL**    | PI gains `[Kp, Ki, Kd]` (then PI)  | `train/CQL_CIRL_Setpoint_Anti_Windup.py` |
+| **CIRL**    | PI gains `[Kp, Ki, Kw]` (then PI; `Kw` pinned to `Ki/Kp`)  | `train/CQL_CIRL_Setpoint_Anti_Windup.py` |
 
 The actor networks are architecturally **identical** to the BC networks, so the
 policies drop straight into the evaluation notebooks.

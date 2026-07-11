@@ -6,10 +6,12 @@ of a solar thermal collector field. Two actor variants are provided:
 | Variant     | Actor output                       | Training script                     |
 |-------------|------------------------------------|-------------------------------------|
 | **Regular** | flow `q ∈ [0, 40]` directly        | `train/BC_Regular_Anti_Windup.py`   |
-| **CIRL**    | PI gains `[Kp, Ki, Kd]` (then PI)  | `train/BC_CIRL_Setpoint_Anti_Windup.py` |
+| **CIRL**    | PI gains `[Kp, Ki, Kw]` (then PI)  | `train/BC_CIRL_Setpoint_Anti_Windup.py` |
 
 The expert is a positional PI controller with back-calculation anti-windup
-(`Kw = Ki/Kp = 1/Ti`), gains from `Main_aggresive.m` (`Kp=-0.5`, `Ti=300 s`, `Kd=0`).
+(`Kw = Ki/Kp = 1/Ti`), gains from `Main_aggresive.m` (`Kp=-0.5`, `Ti=300 s`).
+In the CIRL actor the third gain `Kw` is pinned to that expert constant
+(zero-width box), so offline only `Kp` and `Ki` are shaped.
 Setpoints: **sunny = 80 °C**, **cloudy = 65 °C** (auto-detected from filename).
 
 ## Layout
