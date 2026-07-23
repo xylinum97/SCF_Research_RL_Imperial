@@ -1,4 +1,4 @@
-# Online Tuning — BC vs CQL with a quick refinement (Juan's new data)
+# BC vs CQL Comparison — BC vs CQL with a quick refinement (Juan's new data)
 
 A light-weight head-to-head: which **offline-pretrained starting policy** adapts better to
 Juan's new days when given only a *quick* online refinement — **Behavioral Cloning** or
@@ -41,7 +41,7 @@ the BC+expert start needs the heavier gain-search fine-tuning to catch up.
 ## Layout
 
 ```
-Online Tuning/
+BC vs CQL Comparison/
 ├── data/       Juan's 4 new days (16–19_06_2026)
 ├── policies/   warm-start inputs (bc_..._best.pt, cql_cirl_actor_best.pt)
 │               + refined outputs (online_tuning_bc_refined.pt, online_tuning_cql_refined.pt)

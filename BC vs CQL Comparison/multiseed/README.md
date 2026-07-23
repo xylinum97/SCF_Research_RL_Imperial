@@ -28,5 +28,5 @@ plus `multiseed_offline_bc_vs_cql.png` (mean ± std bars). Then open
 `MultiSeed_Offline_BC_vs_CQL.ipynb` to view everything.
 
 Each training runs in a fresh subprocess (the BC worker imports the BC package's
-`config_cirl`, the CQL worker the Online Tuning `config`, so one process would
+`config_cirl`, the CQL worker the BC vs CQL Comparison `config`, so one process would
 cache the wrong constants).

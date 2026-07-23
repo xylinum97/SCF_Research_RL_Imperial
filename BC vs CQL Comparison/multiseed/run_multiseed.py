@@ -38,7 +38,7 @@ except Exception:
     pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PKG  = os.path.dirname(HERE)                      # Online Tuning
+PKG  = os.path.dirname(HERE)                      # BC vs CQL Comparison
 FG   = os.path.dirname(PKG)                       # For GitHub
 POL  = os.path.join(HERE, "policies"); os.makedirs(POL, exist_ok=True)
 

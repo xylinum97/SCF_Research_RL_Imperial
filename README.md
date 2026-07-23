@@ -15,7 +15,7 @@ For GitHub/
 ├── Behavioral Cloning Actor/    BC of the anti-windup expert          (Regular + CIRL)
 ├── CQL Offline Actor/           offline Conservative Q-Learning        (Regular + CIRL)
 ├── Online ActorCritic Finetune/ online DDPG/TD3, BC actor + CQL critic (2 approaches)
-└── Online Tuning/               BC-vs-CQL quick-refinement comparison
+└── BC vs CQL Comparison/        BC-vs-CQL quick-refinement comparison
 ```
 
 ## The shared design: `main_script` + per-folder `config.py`
@@ -59,7 +59,7 @@ Two actor parameterisations recur throughout:
 | **Behavioral Cloning Actor** | Supervised clone of the anti-windup expert; 15 dataset-combo policies per variant | closed-loop MAE ≈ 1–2 °C |
 | **CQL Offline Actor** | Offline CQL-H from an expert-PI + noise buffer; 15 combos per variant | CIRL ≈ 1.4 °C MAE |
 | **Online ActorCritic Finetune** | Online DDPG/TD3 on Juan's days; **BC actor + CQL-derived critic**; Approach 1 (gain search → critic-exploit) & Approach 2 (critic-driven) | **MAE ≈ 0.11 °C** (Expert PI 1.22) — ~11× better |
-| **Online Tuning** | Light head-to-head: BC-init vs CQL-init, each given a *quick* DDPG refine on Juan's days | CQL-refined **0.18** vs BC-refined **0.98** (single-seed) |
+| **BC vs CQL Comparison** | Light head-to-head: BC-init vs CQL-init, each given a *quick* DDPG refine on Juan's days | CQL-refined **0.18** vs BC-refined **0.98** (single-seed) |
 
 Each folder has its own README with the full method, layout, and per-day numbers.
 

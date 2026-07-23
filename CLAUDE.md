@@ -34,7 +34,7 @@ SCF_Research_RL_Imperial/
 │   └── util.py, _ctx.py          config injection (configure(cfg)), helpers
 ├── Behavioral Cloning Actor/     Phase 1: BC (Regular + CIRL variants)
 ├── CQL Offline Actor/            Phase 2: offline CQL-H (Regular + CIRL variants)
-├── Online Tuning/                Phase 3: BC-vs-CQL quick-refinement comparison
+├── BC vs CQL Comparison/         Phase 3: BC-vs-CQL quick-refinement comparison
 ├── Online ActorCritic Finetune/  Phase 4: online DDPG/TD3, BC actor + CQL critic
 ├── requirements.txt
 └── README.md
@@ -91,11 +91,3 @@ current code and data** — CLAUDE.md is not the source of truth for results, th
   the user asks — check `.gitignore` and prefer to keep the repo diff reviewable.
 - No comments in code beyond what's needed to explain non-obvious constants (e.g.
   why a gain box has a particular bound).
-
-## Related skills
-
-See [SKILLS.md](SKILLS.md) for the skill index. The `report-*`-flavoured skills
-(`init-report`, `write-section`, `review-report`, `format-report`, `commit-report`,
-`push-to-github`, `generate-pr`) operate on the sibling LaTeX report, not on this
-code repository directly — they exist here so report work triggered from this
-project follows the same conventions as the report repo itself.

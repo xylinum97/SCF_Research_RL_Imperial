@@ -1,4 +1,4 @@
-"""Config for the Online Tuning (BC vs CQL quick refinement) experiment.
+"""Config for the BC vs CQL Comparison (BC vs CQL quick refinement) experiment.
 Only constants live here; all behaviour comes from ../main_script."""
 import os
 import numpy as np
